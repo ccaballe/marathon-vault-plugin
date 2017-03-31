@@ -22,13 +22,16 @@ class EnvVaultPlugin extends RunSpecTaskProcessor with PluginConfiguration {
     if ( !vault_addr.equals("none") && !token.equals("none")) {
         runSpec.secrets.foreach {
           case(key, secret) =>
-            val resp = Http(vault_addr + "v1/secret/" + secret.source).header("X-Vault-Token",token).option(HttpOptions.allowUnsafeSSL).asString
+            val url = vault_addr + "v1/" + secret.source
+            val resp = Http(url).header("X-Vault-Token",token).option(HttpOptions.allowUnsafeSSL).asString
+            log.debug(s"TRATO: Response is ${resp.toString}")
             if( resp.is2xx) {
                val jsonresp = Json.parse(resp.body)
-               val secretval = (jsonresp \ "data").as[String]
+
+               val secretVal = (jsonresp \ "data" \ key).as[String]
                val envVariable = Protos.Environment.Variable.newBuilder()
                envVariable.setName(key)
-               envVariable.setValue(secretval)
+               envVariable.setValue(secretVal)
                envBuilder.addVariables(envVariable)
             } else {
               log.error(s"got unexpected response from vault $resp")
